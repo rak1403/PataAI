@@ -1,0 +1,16 @@
+{
+  "name": "sarvam-ai-buildathon",
+  "version": "1.0.0",
+  "description": "Indian Vernacular Address Standardization & Geocoding Intelligence Engine",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "chat": "node index.js",
+    "serve": "node server.js",
+    "test:parser": "node test-parser.js",
+    "test:engine": "node test-engine.js"
+  },
+  "dependencies": {
+    "sarvamai": "^1.1.12"
+  }
+}

@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PataAI | Vernacular Indian Address Standardization & Geocoding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <style>
+    :root {
+      --bg-dark: #0a0e17;
+      --bg-card: rgba(18, 24, 38, 0.85);
+      --bg-card-hover: rgba(26, 34, 52, 0.95);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(59, 130, 246, 0.3);
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.25);
+      --accent-saffron: #f59e0b;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    /* Header */
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(10, 14, 23, 0.8);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #3b82f6, #f59e0b);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: #fff;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #fff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .badge-sarvam {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* Main Container */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 480px 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left Panel: Input & Controls */
+    .input-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+
+    .glass-card:hover {
+      border-color: var(--border-accent);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Presets */
+    .presets-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .preset-chip {
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .preset-chip:hover {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    /* Textarea & Submit */
+    .textarea-wrapper {
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: rgba(10, 14, 23, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 0.9rem;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+      transition: all 0.2s ease;
+      margin-top: 1rem;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Right Panel: Intelligence Results */
+    .results-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Scorecard Banner */
+    .scorecard-banner {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 1.5rem;
+      align-items: center;
+      padding: 1.5rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(18, 24, 38, 0.8));
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .scorecard-banner.risk-medium {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(18, 24, 38, 0.8));
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+
+    .scorecard-banner.risk-high {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(18, 24, 38, 0.8));
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .grade-badge {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      background: #10b981;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .grade-badge.grade-c { background: #f59e0b; box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+    .grade-badge.grade-d, .grade-badge.grade-f { background: #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+
+    .score-info h3 {
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+
+    .score-info p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .score-number {
+      font-size: 2.2rem;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      text-align: right;
+    }
+
+    /* Standardized Formats */
+    .address-card-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .address-card-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .address-display-box {
+      background: rgba(10, 14, 23, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    .address-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .address-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .address-text.indic {
+      font-size: 1.05rem;
+      color: #fbbf24;
+    }
+
+    /* Structured Tokens Grid */
+    .tokens-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .token-item {
+      background: rgba(10, 14, 23, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+    }
+
+    .token-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 0.2rem;
+    }
+
+    .token-val {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      word-break: break-word;
+    }
+
+    /* Badges */
+    .relation-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      margin-right: 0.35rem;
+    }
+
+    .alias-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* Flags & Recommendations */
+    .flags-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .flag-chip {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.5rem 0.85rem;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .rec-item {
+      font-size: 0.85rem;
+      padding: 0.6rem 0.85rem;
+      background: rgba(59, 130, 246, 0.08);
+      border-left: 3px solid var(--primary);
+      border-radius: 4px;
+      color: #e2e8f0;
+      margin-bottom: 0.4rem;
+    }
+
+    /* Map Box */
+    #map-container {
+      height: 320px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    /* JSON Drawer */
+    pre {
+      background: #06090e;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #a5b4fc;
+      max-height: 250px;
+      overflow: auto;
+    }
+
+    /* Loader Spinner */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">प</div>
+      <div>
+        <div class="brand-title">PataAI | IndicAddress</div>
+        <div class="brand-subtitle">Vernacular Indian Address Standardization & Geocoding</div>
+      </div>
+    </div>
+    <div class="badge-sarvam">
+      <span>⚡ Powered by Sarvam-105B</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: Input & Presets -->
+    <div class="input-panel">
+      <div class="glass-card">
+        <div class="card-title">
+          <span>Preset Test Cases</span>
+          <span style="font-size: 0.75rem; color: var(--primary);">Tier-2/3 Benchmarks</span>
+        </div>
+        <div class="presets-container" id="presets-list">
+          <!-- Injected dynamically -->
+        </div>
+
+        <div class="card-title" style="margin-top: 1.5rem;">
+          <span>Raw Vernacular Address</span>
+        </div>
+        <div class="textarea-wrapper">
+          <textarea id="raw-input" placeholder="Enter raw address in Roman Hindi (Hinglish), native script, or mixed regional landmarks (e.g. 'Shiv mandir ke peeche, Lanka, Banaras')...">Hno 14 gali no 3, shiv mandir ke peeche, Lanka, Banaras, UP 221005</textarea>
+        </div>
+
+        <button class="btn-submit" id="btn-analyze" onclick="handleStandardize()">
+          <span id="btn-text">Standardize & Geocode</span>
+          <div class="spinner" id="btn-spinner" style="display: none;"></div>
+        </button>
+      </div>
+
+      <!-- Quick Metrics Card -->
+      <div class="glass-card" id="metrics-card" style="display: none;">
+        <div class="card-title">Processing Telemetry</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div class="token-item">
+            <div class="token-label">Model Pipeline</div>
+            <div class="token-val" id="meta-model">sarvam-105b</div>
+          </div>
+          <div class="token-item">
+            <div class="token-label">Inference Latency</div>
+            <div class="token-val" id="meta-latency">0 ms</div>
+          </div>
+          <div class="token-item">
+            <div class="token-label">Source Language</div>
+            <div class="token-val" id="meta-lang">hi-IN (Latin)</div>
+          </div>
+          <div class="token-item">
+            <div class="token-label">Geocode Resolution</div>
+            <div class="token-val" id="meta-res">LANDMARK_LEVEL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Intelligence Results -->
+    <div class="results-panel">
+      <!-- Scorecard Banner -->
+      <div class="scorecard-banner" id="scorecard-banner">
+        <div class="grade-badge" id="grade-badge">A</div>
+        <div class="score-info">
+          <h3 id="risk-heading">Low RTO Risk — Deliverable</h3>
+          <p id="risk-sub">Address has door number, recognized landmark, and validated PIN.</p>
+        </div>
+        <div>
+          <div class="score-number" id="score-val">100<span style="font-size: 1.1rem; color: var(--text-dim);">/100</span></div>
+          <div style="font-size: 0.75rem; text-align: right; color: var(--text-dim);">CONFIDENCE</div>
+        </div>
+      </div>
+
+      <!-- Standardized Address Cards -->
+      <div class="glass-card">
+        <div class="card-title">Standardized Deliverable Formats</div>
+        <div class="address-card-row">
+          <div class="address-display-box">
+            <div class="address-label">
+              <span>English (Courier Label)</span>
+              <span>📦 Standard</span>
+            </div>
+            <div class="address-text" id="disp-english">H.No 14, Gali No 3, Behind Shiv Mandir, Lanka, Varanasi, Uttar Pradesh, 221005</div>
+          </div>
+          <div class="address-display-box">
+            <div class="address-label">
+              <span>Indic Script (Devanagari)</span>
+              <span>🇮🇳 Vernacular</span>
+            </div>
+            <div class="address-text indic" id="disp-indic">एच.नं 14, गली नं 3, शिव मंदिर के पीछे, लंका, वाराणसी, उत्तर प्रदेश, 221005</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map & Geocoding -->
+      <div class="glass-card">
+        <div class="card-title">
+          <span>Geospatial Pinpoint & Resolution</span>
+          <span id="map-coords" style="font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; color: var(--primary);">25.2815, 82.9994</span>
+        </div>
+        <div id="map-container"></div>
+      </div>
+
+      <!-- Structured Entities Grid -->
+      <div class="glass-card">
+        <div class="card-title">Extracted Geographic Entities</div>
+        <div class="tokens-grid" id="tokens-grid">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+
+      <!-- Recommendations & Flags -->
+      <div class="glass-card" id="flags-card">
+        <div class="card-title">Operational Flags & RTO Safeguards</div>
+        <div class="flags-container" id="flags-list">
+          <!-- Injected dynamically -->
+        </div>
+        <div style="margin-top: 1rem;">
+          <div class="card-title" style="font-size: 0.8rem;">Recommended Action for Operations</div>
+          <div id="recs-list">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Developer JSON Payload -->
+      <div class="glass-card">
+        <div class="card-title">
+          <span>Raw API JSON Response</span>
+          <button onclick="navigator.clipboard.writeText(document.getElementById('raw-json').textContent)" style="background: none; border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 6px; cursor: pointer;">Copy JSON</button>
+        </div>
+        <pre id="raw-json">// Run an address to view JSON response payload...</pre>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let map = null;
+    let marker = null;
+    let circle = null;
+
+    // Initialize Map
+    function initMap(lat = 25.2815, lng = 82.9994, zoom = 14) {
+      if (!map) {
+        map = L.map('map-container').setView([lat, lng], zoom);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
+      } else {
+        map.setView([lat, lng], zoom);
+      }
+
+      if (marker) map.removeLayer(marker);
+      if (circle) map.removeLayer(circle);
+
+      marker = L.marker([lat, lng]).addTo(map);
+      circle = L.circle([lat, lng], {
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.2,
+        radius: 350
+      }).addTo(map);
+    }
+
+    // Load Presets
+    async function loadPresets() {
+      try {
+        const res = await fetch('/api/v1/presets');
+        const data = await res.json();
+        const container = document.getElementById('presets-list');
+        container.innerHTML = '';
+        data.presets.forEach(p => {
+          const chip = document.createElement('div');
+          chip.className = 'preset-chip';
+          chip.textContent = p.label;
+          chip.onclick = () => {
+            document.getElementById('raw-input').value = p.address;
+            handleStandardize();
+          };
+          container.appendChild(chip);
+        });
+      } catch (e) {
+        console.error("Failed to load presets", e);
+      }
+    }
+
+    // Standardize Handler
+    async function handleStandardize() {
+      const input = document.getElementById('raw-input').value.trim();
+      if (!input) return;
+
+      const btn = document.getElementById('btn-analyze');
+      const btnText = document.getElementById('btn-text');
+      const btnSpinner = document.getElementById('btn-spinner');
+
+      btn.disabled = true;
+      btnText.textContent = 'Standardizing...';
+      btnSpinner.style.display = 'block';
+
+      try {
+        const res = await fetch('/api/v1/standardize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: input })
+        });
+
+        const data = await res.json();
+        renderResults(data);
+      } catch (err) {
+        alert("Error standardizing address: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Standardize & Geocode';
+        btnSpinner.style.display = 'none';
+      }
+    }
+
+    function renderResults(data) {
+      if (data.error) {
+        alert("Error: " + data.error);
+        return;
+      }
+
+      // JSON viewer
+      document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+
+      // Scorecard
+      const scoreBanner = document.getElementById('scorecard-banner');
+      const gradeBadge = document.getElementById('grade-badge');
+      const scoreVal = document.getElementById('score-val');
+      const riskHeading = document.getElementById('risk-heading');
+      const riskSub = document.getElementById('risk-sub');
+
+      scoreVal.innerHTML = `${data.assessment.score}<span style="font-size: 1.1rem; color: var(--text-dim);">/100</span>`;
+      gradeBadge.textContent = data.assessment.grade;
+      gradeBadge.className = `grade-badge grade-${data.assessment.grade.toLowerCase()}`;
+
+      scoreBanner.className = 'scorecard-banner';
+      if (data.assessment.risk_level === 'MEDIUM') {
+        scoreBanner.classList.add('risk-medium');
+        riskHeading.textContent = `Moderate RTO Risk (Grade ${data.assessment.grade})`;
+      } else if (data.assessment.risk_level === 'HIGH') {
+        scoreBanner.classList.add('risk-high');
+        riskHeading.textContent = `High RTO Risk — Action Required (Grade ${data.assessment.grade})`;
+      } else {
+        riskHeading.textContent = `Low RTO Risk — Ready for Dispatch (Grade ${data.assessment.grade})`;
+      }
+
+      riskSub.textContent = data.assessment.recommendations[0] || "Address verified.";
+
+      // Display text
+      document.getElementById('disp-english').textContent = data.standardized_address_en || data.raw_address;
+      document.getElementById('disp-indic').textContent = data.standardized_address_indic || "—";
+
+      // Map Coordinates
+      const lat = data.geocoding?.latitude || 25.2815;
+      const lon = data.geocoding?.longitude || 82.9994;
+      document.getElementById('map-coords').textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)} [${data.geocoding?.resolution_level || 'CENTROID'}]`;
+      initMap(lat, lon, data.geocoding?.resolution_level === 'LANDMARK_LEVEL' ? 16 : 14);
+
+      // Telemetry
+      document.getElementById('metrics-card').style.display = 'block';
+      document.getElementById('meta-model').textContent = data.meta?.parser_model || 'sarvam-105b';
+      document.getElementById('meta-latency').textContent = `${data.meta?.latency_ms || 0} ms`;
+      document.getElementById('meta-lang').textContent = data.detected_script ? `${data.detected_script.language_code} (${data.detected_script.script})` : '—';
+      document.getElementById('meta-res').textContent = data.geocoding?.resolution_level || 'UNRESOLVED';
+
+      // Structured Entities Grid
+      const grid = document.getElementById('tokens-grid');
+      grid.innerHTML = `
+        <div class="token-item">
+          <div class="token-label">House / Flat / Shop</div>
+          <div class="token-val">${data.structured.house_or_flat || '<span style="color: var(--accent-red)">Missing</span>'}</div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">Street / Lane</div>
+          <div class="token-val">${data.structured.street_or_road || '<span style="color: var(--text-dim)">None</span>'}</div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">Landmark & Anchor</div>
+          <div class="token-val">
+            ${data.structured.landmark_relation !== 'NONE' ? `<span class="relation-badge">${data.structured.landmark_relation}</span>` : ''}
+            ${data.structured.landmark || '<span style="color: var(--text-dim)">None</span>'}
+          </div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">Locality / Area</div>
+          <div class="token-val">${data.structured.locality || '<span style="color: var(--accent-red)">Missing</span>'}</div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">Canonical City</div>
+          <div class="token-val">
+            ${data.structured.canonical_city || '<span style="color: var(--accent-red)">Unresolved</span>'}
+            ${data.structured.detected_alias ? `<span class="alias-badge">Alias: ${data.structured.detected_alias}</span>` : ''}
+          </div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">Postal PIN Code</div>
+          <div class="token-val">
+            ${data.pincode_validation?.is_valid ? `<span style="color: var(--accent-green)">✓ ${data.structured.pincode}</span>` : `<span style="color: var(--accent-red)">✗ Missing/Invalid</span>`}
+          </div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">State / Region</div>
+          <div class="token-val">${data.structured.state || '<span style="color: var(--text-dim)">None</span>'}</div>
+        </div>
+        <div class="token-item">
+          <div class="token-label">PIN State Match</div>
+          <div class="token-val">
+            ${data.pincode_validation?.state_matches === true ? '<span style="color: var(--accent-green)">✓ Matches UP/State</span>' : (data.pincode_validation?.state_matches === false ? '<span style="color: var(--accent-red)">✗ STATE MISMATCH</span>' : '<span style="color: var(--text-dim)">N/A</span>')}
+          </div>
+        </div>
+      `;
+
+      // Flags & Recommendations
+      const flagsList = document.getElementById('flags-list');
+      flagsList.innerHTML = '';
+      if (!data.assessment.flags || data.assessment.flags.length === 0) {
+        flagsList.innerHTML = `<div class="flag-chip" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #6ee7b7;">✓ No critical anomalies detected</div>`;
+      } else {
+        data.assessment.flags.forEach(f => {
+          const chip = document.createElement('div');
+          chip.className = 'flag-chip';
+          chip.textContent = `⚠ ${f}`;
+          flagsList.appendChild(chip);
+        });
+      }
+
+      const recsList = document.getElementById('recs-list');
+      recsList.innerHTML = '';
+      data.assessment.recommendations.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'rec-item';
+        item.textContent = r;
+        recsList.appendChild(item);
+      });
+    }
+
+    // Bootstrap
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      loadPresets();
+      handleStandardize(); // Auto-run initial demo address
+    });
+  </script>
+</body>
+</html>
